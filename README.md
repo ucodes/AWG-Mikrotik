@@ -1,16 +1,20 @@
-Overview.
+# Overview.
 
-Covers implementation steps for Docker image build of WireGuard-Go fork from official AmneziaWG repository and configuration of RouterOS running the AmneziaWG client in a container. The image is built on Ubuntu 24.04.2 LTS amd64 and run on Mikrotik 7.19.1 arm64 platform. Mikrotik configuration provides transparent routing to AmneziaWG container running on a server: RouterOS marks connections and sends to a local container, the container wraps the traffic into the AWG tunnel, AWG container on the VPS server side receives the traffic, the traffic goes through the NAT rules and goes to the Internet. Reverse routing is done with help of MASQUERADE in local IPtables on a server. 
+	Covers implementation steps for Docker image build of WireGuard-Go fork from official AmneziaWG repository and configuration of RouterOS running the AmneziaWG client in a container.
+The image is built on Ubuntu 24.04.2 LTS amd64 and run on Mikrotik 7.19.1 arm64 platform.
+Mikrotik configuration provides transparent routing to AmneziaWG container running on a server: RouterOS marks connections and sends to a local container, the container wraps the traffic into the AWG tunnel, AWG container on the VPS server side receives the traffic, the traffic goes through the NAT rules and goes to the Internet. Reverse routing is done with help of MASQUERADE in local IPtables on a server. 
 
-IPs used.
+## IPs used.
 
 Mikrotik containers network 172.17.1.0/30
 AWG network 10.8.1.0/24
 Mikrotik AWG client Address 10.8.1.7/32
 
-Image build.
+## Image build.
 
-1. install latest Docker and Buildx:
+### 1. install latest Docker and Buildx:
+
+```bash
 # Add Docker's official GPG key:
 sudo apt-get update
 sudo apt-get install ca-certificates curl
@@ -30,33 +34,45 @@ sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin 
 sudo groupadd docker
 sudo usermod -aG docker ${USER}
 reboot
+```
 
-2. download and install go
+### 2. download and install go
+
+```bash
 rm -rf /usr/local/go && tar -C /usr/local -xzf go1.24.3.linux-amd64.tar.gz
 export PATH=$PATH:/usr/local/go/bin
 go version
 apt install make
+```
 
-3. install cross-platform emulator for Docker images to support ARM64 https://help.mikrotik.com/docs/spaces/ROS/pages/84901929/Container
+### 3. install cross-platform emulator for Docker images to support ARM64 https://help.mikrotik.com/docs/spaces/ROS/pages/84901929/Container
+```bash
 docker buildx ls
 docker run --privileged --rm tonistiigi/binfmt --install all
+```
 
-4. build and export image for Mikrotik
+### 4. build and export image for Mikrotik
+```bash
 #copy wireguard-fs folder and Dockerfile to a project folder on a server
 docker buildx build --build-arg ARCHITECTURE=arm64 --no-cache --progress=plain --platform linux/arm64/v8 --output=type=docker --tag docker-awg-arm64:latest . && docker save docker-awg-arm64:latest > docker-awg-arm64.tar
+```
 
-Mikrotik config.
+## Mikrotik config.
 
-1. Update FW to the latest (RouterOS and RouterBOARD) https://help.mikrotik.com/docs/spaces/ROS/pages/328142/Upgrading+and+installation
-2. Format external drive
+### 1. Update FW to the latest (RouterOS and RouterBOARD) https://help.mikrotik.com/docs/spaces/ROS/pages/328142/Upgrading+and+installation
+### 2. Format external drive
+```bash
 	/disk/print
 	/disk/format usb1  file-system=ext4
-3. install extra package https://mikrotik.com/download
-4. enable container support
+```
+### 3. install extra package https://mikrotik.com/download
+### 4. enable container support
+```bash
 /system/device-mode/update container=yes
 #followed by reboot by a power
-5. Routing config
-
+```
+### 5. Routing config
+```bash
 #create VPN routing table
 /routing table 
 add disabled=no fib name=routing_to_vpn
@@ -103,10 +119,12 @@ add distance=1 dst-address=0.0.0.0/0 gateway=172.17.1.2 routing-table=routing_to
 #Create a source NAT for all outgoing traffic to containers:
 /ip firewall nat
 add action=masquerade chain=srcnat out-interface=docker-awg-veth comment="Outgoing NAT for containers"
+```
 
-6. Create a new client connection on a server and update wg0.conf with allowed IPs (allowed - 0.0.0.0/0, disallowed IPs - containers network (172.17.1.0/30), AWG network (10.8.1.0/24), server public IP/32 (Endpoint in wg0.conf)) using calc https://www.procustodibus.com/blog/2021/03/wireguard-allowedips-calculator/ and remove IPv6
+### 6. Create a new client connection on a server and update wg0.conf with allowed IPs (allowed - 0.0.0.0/0, disallowed IPs - containers network (172.17.1.0/30), AWG network (10.8.1.0/24), server public IP/32 (Endpoint in wg0.conf)) using calc https://www.procustodibus.com/blog/2021/03/wireguard-allowedips-calculator/ and remove IPv6
 
-7. create container mounts and run the container
+### 7. create container mounts and run the container
+```bash
 #copy docker-awg-arm64.tar to /usb1
 #create usb1/tmp directory in winbox
 #create usb1/AWG/conf directory in winbox
@@ -121,10 +139,12 @@ set tmpdir=usb1/tmp
 
 /container
 add hostname=amnezia interface=docker-awg-veth logging=yes start-on-boot=yes mounts=awg_conf root-dir=/usb1/AWG/container file=usb1/docker-awg-arm64.tar
+```
 
-AWG server config.
+## AWG server config.
 
 By default, AmneziaWG client runs w/o a NAT in the container, therefore Mikrotik containers network (172.17.1.0/30) must be added/allowed on a server
+```bash
 #on a server
 docker container ls
 #check for awg container name and shell to it
@@ -141,12 +161,13 @@ iptables -t nat -A POSTROUTING -o eth1 -j MASQUERADE
 #save
 #start the server
 wg-quick up /opt/amnezia/awg/wg0.conf
+```
 
-Troubleshooting.
+## Troubleshooting.
 
 docker container exec -it, docker container logs, torch, tcpdump, wg-quick, awg-quick
 
-Tags.
+## Tags.
 
 AmneziaWG, Amnezia, AWG, WireGuard, WireGuard-Go, Docker, container, client, Mikrotik, ARM64
 
