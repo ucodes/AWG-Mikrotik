@@ -1,14 +1,14 @@
 # Overview.
 
-   Covers implementation steps for Docker image build of WireGuard-Go fork from official AmneziaWG repository and configuration of RouterOS running the AmneziaWG client in a container.
-The image is built on Ubuntu 24.04.2 LTS amd64 and run on Mikrotik 7.19.1 arm64 platform.
-Mikrotik configuration provides transparent routing to AmneziaWG container running on a server: RouterOS marks connections and sends to a local container, the container wraps the traffic into the AWG tunnel, AWG container on the VPS server side receives the traffic, the traffic goes through the NAT rules and goes to the Internet. Reverse routing is done with help of MASQUERADE in local IPtables on a server. 
+   Covers implementation steps for Docker image build of WireGuard-Go fork from official AmneziaWG repository and configuration of RouterOS running the AmneziaWG client in a container.  
+The image is built on Ubuntu 24.04.2 LTS amd64 and run on Mikrotik 7.19.1 arm64 platform.  
+Mikrotik configuration provides transparent routing to AmneziaWG container running on a server: RouterOS marks connections and sends to a local container, the container wraps the traffic into the AWG tunnel, AWG container on the VPS server side receives the traffic, the traffic goes through the NAT rules and goes to the Internet. Reverse routing is done with help of MASQUERADE in local IPtables on a server.  
 
 ## IPs used in this setup.
 
-Mikrotik containers network 172.17.1.0/30
-AWG network 10.8.1.0/24
-Mikrotik AWG client Address 10.8.1.7/32
+Mikrotik containers network 172.17.1.0/30  
+AWG network 10.8.1.0/24  
+Mikrotik AWG client Address 10.8.1.7/32  
 
 ## Image build.
 
@@ -45,7 +45,7 @@ go version
 apt install make
 ```
 
-###  3. Install cross-platform emulator for {Docker images to support arm64](https://help.mikrotik.com/docs/spaces/ROS/pages/84901929/Container#Container-Alternative%3AUsingDockertobuildContainerimages)
+###  3. Install cross-platform emulator for [Docker images to support arm64](https://help.mikrotik.com/docs/spaces/ROS/pages/84901929/Container#Container-Alternative%3AUsingDockertobuildContainerimages)
 ```bash
 docker buildx ls
 docker run --privileged --rm tonistiigi/binfmt --install all
@@ -95,12 +95,12 @@ add action=accept chain=prerouting dst-address-list=RFC1918 in-interface-list=!W
 
 #add a transit traffic rule to mark traffic for "to_vpn" address list 
 /ip firewall mangle
-add action=mark-connection chain=prerouting connection-mark=no-mark dst-address-list=to_vpn in-interface-list=!WAN \
-    new-connection-mark=to-vpn-connmark passthrough=yes
+add action=mark-connection chain=prerouting connection-mark=no-mark dst-address-list=to_vpn \
+    in-interface-list=!WAN new-connection-mark=to-vpn-connmark passthrough=yes
 
 #a transit traffic rule sending to "routing_to_vpn" routing table for routing
-add action=mark-routing chain=prerouting connection-mark=to-vpn-connmark in-interface-list=!WAN new-routing-mark=routing_to_vpn \
-    passthrough=yes
+add action=mark-routing chain=prerouting connection-mark=to-vpn-connmark in-interface-list=!WAN \
+    new-routing-mark=routing_to_vpn passthrough=yes
 
 #create awg container veth
 /interface veth
@@ -112,8 +112,8 @@ add interface=docker-awg-veth address=172.17.1.1/30
 
 #update mss for container traffic (must be after RFC1918 rule)
 /ip firewall mangle
-add action=change-mss chain=forward new-mss=1360 out-interface=docker-awg-veth passthrough=yes protocol=tcp tcp-flags=syn \
-	tcp-mss=1453-6553
+add action=change-mss chain=forward new-mss=1360 out-interface=docker-awg-veth passthrough=yes \
+    protocol=tcp tcp-flags=syn tcp-mss=1453-6553
 
 #add a default route in "routing_to_vpn" routing table to send all traffic to AWG container
 /ip route
@@ -142,8 +142,8 @@ add dst=/etc/amnezia/amneziawg/ name=awg_conf src=/usb1/AWG/conf
 set tmpdir=usb1/tmp
 
 /container
-add hostname=amnezia interface=docker-awg-veth logging=yes start-on-boot=yes mounts=awg_conf root-dir=/usb1/AWG/container \
-	file=usb1/docker-awg-arm64.tar
+add hostname=amnezia interface=docker-awg-veth logging=yes start-on-boot=yes mounts=awg_conf \
+    root-dir=/usb1/AWG/container file=usb1/docker-awg-arm64.tar
 ```
 
 ## AWG server config.
@@ -156,7 +156,8 @@ docker container ls
 docker exec -it amnezia-awg bash
 wg-quick down /opt/amnezia/awg/wg0.conf
 vi /opt/amnezia/awg/wg0.conf
-#check for the Mikrotik client [Peer] and add containers network to AllowedIPs (AllowedIPs = 10.8.1.7/32, 172.17.1.0/30)
+#check for the Mikrotik client [Peer] and add containers network to AllowedIPs
+#(AllowedIPs = 10.8.1.7/32, 172.17.1.0/30)
 #save
 vi /opt/amnezia/start.sh
 #add MASQUERADE rules to the end
