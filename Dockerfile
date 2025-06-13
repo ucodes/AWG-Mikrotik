@@ -49,6 +49,7 @@ RUN \
 #Prevents awg-quick from attempting to set sysctl parameters that have already been set (preventing it from starting up).
 RUN sed -i 's/cmd sysctl -q \(.*\?\)=\(.*\)/[[ "$(sysctl -n \1)" != "\2" ]] \&\& \0/' /usr/bin/awg-quick
 
+#switch from the default "nftables-based" iptables backend to the older "legacy" iptables backend.
 RUN rm /usr/sbin/iptables && ln -s /usr/sbin/iptables-legacy /usr/sbin/iptables 
 RUN rm /usr/sbin/ip6tables && ln -s /usr/sbin/ip6tables-legacy /usr/sbin/ip6tables
 
@@ -56,6 +57,7 @@ RUN rm /usr/sbin/ip6tables && ln -s /usr/sbin/ip6tables-legacy /usr/sbin/ip6tabl
 RUN chmod u+x /etc/init.d/wg-quick
 RUN rc-update add wg-quick default
 
+#enable IP routing
 RUN echo -e " \n\
     net.ipv4.ip_forward = 1 \n\
 	net.ipv6.conf.default.forwarding=1 \n\
