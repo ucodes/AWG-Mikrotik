@@ -110,7 +110,7 @@ add address=172.17.1.2/30 gateway=172.17.1.1 gateway6="" name=docker-awg-veth
 /ip address
 add interface=docker-awg-veth address=172.17.1.1/30
 
-#update mss for container traffic (must be after RFC1918 rule)
+#update mss for container traffic (must be after RFC1918 rule) to bypass ddos-guard
 /ip firewall mangle
 add action=change-mss chain=forward new-mss=1360 out-interface=docker-awg-veth passthrough=yes \
     protocol=tcp tcp-flags=syn tcp-mss=1453-6553
@@ -125,7 +125,7 @@ add action=masquerade chain=srcnat out-interface=docker-awg-veth comment="Outgoi
 ```
 
 ###  6. Create a new client connection on a server and update wg0.conf with allowed IPs
-Update wg0.conf file using [calc](https://www.procustodibus.com/blog/2021/03/wireguard-allowedips-calculator/), where allowed IPs - 0.0.0.0/0, disallowed - containers network (172.17.1.0/30), AWG network (10.8.1.0/24) and server public IP/32 (Endpoint in wg0.conf) and remove IPv6
+Update wg0.conf file using [calc](https://www.procustodibus.com/blog/2021/03/wireguard-allowedips-calculator/), where allowed IPs - 0.0.0.0/0, disallowed - containers network (172.17.1.0/30), AWG client (10.8.1.0/32) and server public IP/32 (Endpoint in wg0.conf) and remove IPv6
 
 ###  7. create container mounts and run the container
 ```bash
@@ -167,6 +167,7 @@ iptables -t nat -A POSTROUTING -o eth1 -j MASQUERADE
 #save
 #start the server
 wg-quick up /opt/amnezia/awg/wg0.conf
+#restart container and/or reboot the server
 ```
 
 ## Troubleshooting.
