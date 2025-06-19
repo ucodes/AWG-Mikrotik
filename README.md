@@ -125,7 +125,7 @@ add action=masquerade chain=srcnat out-interface=docker-awg-veth comment="Outgoi
 ```
 
 ###  6. Create a new client connection on a server and update wg0.conf with allowed IPs
-Update wg0.conf file using [calc](https://www.procustodibus.com/blog/2021/03/wireguard-allowedips-calculator/), where allowed IPs - 0.0.0.0/0, disallowed - containers network (172.17.1.0/30), AWG client (10.8.1.0/32) and server public IP/32 (Endpoint in wg0.conf) and remove IPv6
+Update wg0.conf file using [calc](https://www.procustodibus.com/blog/2021/03/wireguard-allowedips-calculator/), where allowed IPs - 0.0.0.0/0, disallowed - containers network (172.17.1.0/30), AWG client (10.8.1.7/32) and server public IP/32 (Endpoint in wg0.conf) and remove IPv6
 
 ###  7. create container mounts and run the container
 ```bash
